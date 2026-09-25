@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scout</title>
+<style>
+:root{--bg:#0d111c;--side:#0a0d16;--panel:#151b2b;--panel2:#1b2236;--line:#252d45;--ink:#e8ebf5;--mute:#8b94b0;--acc:#7c6cff;--acc2:#a99cff;
+--trivial:#42d392;--easy:#9bdc5a;--medium:#f5b942;--hard:#f0668a;--r:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;display:grid;grid-template-columns:236px 1fr;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:8px 14px;transition:border-color .15s,background .15s}
+button:hover{border-color:var(--acc)}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button.pri:hover{background:#6a59f5}
+button.ghost{background:transparent}
+button:disabled{opacity:.6;cursor:progress}
+:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+input,textarea{font:inherit;width:100%;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+input:focus,textarea:focus{outline:none;border-color:var(--acc)}
+
+/* sidebar */
+nav{background:var(--side);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 22px;font:700 21px "Segoe UI Variable Display","Segoe UI",sans-serif;letter-spacing:-.3px}
+.brand svg{width:28px;height:28px}
+.nv{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;padding:10px 12px;color:var(--mute)}
+.nv:hover{background:var(--panel);color:var(--ink)}
+.nv.on{background:var(--panel2);color:var(--ink)}
+.nv i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.nv em{margin-left:auto;font-style:normal;font-size:12px;background:var(--bg);border-radius:999px;padding:0 8px;color:var(--mute)}
+.grow{flex:1}
+.me{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.me small{color:var(--mute);display:block;margin-bottom:6px}
+.mini{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.mini span,.tg{background:#2a2450;color:var(--acc2);border-radius:999px;padding:1px 9px;font-size:12px}
+.mini span.l,.tg.l{background:#3b2f14;color:var(--medium)}
+.me button{width:100%}
+
+/* main */
+main{overflow:auto;padding:26px 34px 60px}
+.top{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.top h1{margin:0;font:700 26px "Segoe UI Variable Display","Segoe UI",sans-serif;letter-spacing:-.4px}
+.top p{margin:2px 0 0;color:var(--mute)}
+.top .grow{flex:1}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;gap:2px;margin-bottom:22px;width:max-content;max-width:100%;overflow:auto}
+.seg button{border:0;background:transparent;padding:7px 15px;border-radius:9px;text-align:left;line-height:1.25}
+.seg button small{display:block;color:var(--mute);font-size:11.5px}
+.seg button.on{background:var(--panel2);box-shadow:inset 0 0 0 1px var(--c,var(--acc))}
+.seg button.on b{color:var(--c,var(--ink))}
+
+/* cards */
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px 16px 24px;margin-bottom:14px;display:grid;grid-template-columns:1fr 70px;gap:4px 18px;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
+.repo{font:12.5px Consolas,"Cascadia Code",monospace;color:var(--mute)}
+.card h3{margin:2px 0 8px;font:600 17px/1.35 "Segoe UI Variable Display","Segoe UI",sans-serif}
+.card h3 a{color:inherit;text-decoration:none}.card h3 a:hover{color:var(--acc2)}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.lv{border-radius:999px;padding:1px 10px;font-size:12px;font-weight:600;color:var(--c);border:1px solid var(--c)}
+.lab{font-size:12px;color:var(--mute);background:var(--bg);border-radius:999px;padding:1px 9px}
+.why{margin:0;color:#c9cfe4;max-width:70ch}
+.ring{grid-column:2;grid-row:1/3;width:64px;height:64px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0);display:grid;place-items:center}
+.ring span{width:50px;height:50px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font-weight:700;font-size:17px}
+details{grid-column:1/-1;margin-top:6px}
+summary{cursor:pointer;color:var(--acc2);font-size:13.5px}
+.plan{white-space:pre-line;margin:8px 0 0;padding:10px 14px;background:var(--bg);border-radius:10px;color:#c9cfe4}
+.acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.acts button{padding:6px 12px;font-size:13.5px}
+.draft{grid-column:1/-1;margin-top:8px}.draft textarea{min-height:120px;resize:vertical}
+
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:56px 24px;text-align:center;color:var(--mute)}
+.empty h2{margin:0 0 6px;color:var(--ink);font-size:20px}
+.sk{height:132px;border-radius:var(--r);margin-bottom:14px;background:linear-gradient(90deg,var(--panel) 0,var(--panel2) 50%,var(--panel) 100%);background-size:200% 100%}
+@media(prefers-reduced-motion:no-preference){.sk{animation:sh 1.3s linear infinite}@keyframes sh{to{background-position:-200% 0}}}
+
+/* profile dialog */
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:0;width:min(560px,94vw);max-height:92vh;overflow:auto}
+dialog::backdrop{background:rgba(5,7,12,.7)}
+.dh{padding:22px 24px 6px}.dh h2{margin:0;font-size:21px}.dh p{margin:4px 0 0;color:var(--mute)}
+.db{padding:6px 24px 8px}
+.db label{display:block;margin:16px 0 6px;font-weight:600}
+.db label span{display:block;font-weight:400;color:var(--mute);font-size:13px}
+.tagbox{display:flex;flex-wrap:wrap;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px}
+.tagbox:focus-within{border-color:var(--acc)}
+.tagbox input{flex:1;min-width:120px;border:0;padding:4px 6px;background:transparent}
+.tg{display:inline-flex;gap:6px;align-items:center;font-size:13px;padding:2px 6px 2px 11px}
+.tg b{cursor:pointer;font-weight:400;opacity:.7}.tg b:hover{opacity:1}
+.df{display:flex;gap:10px;justify-content:flex-end;padding:16px 24px 22px}
+.ok{color:var(--trivial);font-size:12.5px;margin-top:4px}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 18px;border-radius:12px;display:none;max-width:80vw;z-index:9}
+#toast.err{border-color:var(--hard);color:#ffc2d0}
+@media(max-width:760px){body{grid-template-columns:1fr;overflow:auto}nav{flex-direction:row;overflow:auto;padding:10px}.brand{padding:0 8px}.me,.grow{display:none}main{padding:18px}}
+</style></head>
+<body>
+<nav>
+  <div class="brand"><svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" stroke="#7c6cff" stroke-width="2"/><circle cx="16" cy="16" r="8" stroke="#7c6cff" stroke-width="2" opacity=".55"/><path d="M16 16 26 8" stroke="#a99cff" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="16" r="2.6" fill="#a99cff"/></svg>Scout</div>
+  <div id="nav"></div>
+  <div class="grow"></div>
+  <div class="me"><small>Knows</small><div class="mini" id="mk"></div><small>Learning</small><div class="mini" id="ml"></div><button id="open">Profile and keys</button></div>
+</nav>
+
+<main>
+  <div class="top"><div><h1 id="title">New issues</h1><p id="sub"></p></div><div class="grow"></div><button class="pri" id="scan">Find issues</button></div>
+  <div class="seg" id="seg"></div>
+  <div id="list"></div>
+</main>
+
+<dialog id="dlg">
+  <div class="dh"><h2>Your profile</h2><p>Scout uses this to pick issues you can do. Everything stays on this computer.</p></div>
+  <div class="db">
+    <label>Skills I know<span>Type a skill and press Enter.</span></label>
+    <div class="tagbox" id="tb-know"><input placeholder="Go, Python, Docker"></div>
+    <label>Skills I want to learn<span>These count as a stretch, so they rank slightly lower.</span></label>
+    <div class="tagbox" id="tb-learn"><input placeholder="Rust, Kubernetes"></div>
+    <div style="margin-top:10px"><button id="detect" class="ghost">Fill “I know” from my GitHub repos</button></div>
+    <label for="pat">GitHub token</label><input id="pat" type="password" autocomplete="off" placeholder="ghp_…"><div class="ok" id="patok"></div>
+    <label for="groq">Groq API key</label><input id="groq" type="password" autocomplete="off" placeholder="gsk_…"><div class="ok" id="groqok"></div>
+  </div>
+  <div class="df"><button class="ghost" id="cancel">Close</button><button class="pri" id="save">Save</button></div>
+</dialog>
+<div id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const VIEWS=[['new','New','#7c6cff'],['saved','Saved','#3ddbd9'],['claimed','Claimed','#f5b942'],['done','Done','#42d392']];
+const LV=[['any','Any level','everything','#a99cff'],['trivial','Trivial','typos, renames','#42d392'],['easy','Easy','small fix','#9bdc5a'],['medium','Medium','a few files','#f5b942'],['hard','Hard','needs design','#f0668a']];
+const COL=Object.fromEntries(LV.map(x=>[x[0],x[3]]));
+let S={issues:[],skills:'',learn:''},view='new',lvl='any',busy=false;
+const tags={know:[],learn:[]};
+
+function toast(m,e){const t=$('toast');t.textContent=m;t.className=e?'err':'';t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',e?6500:2600)}
+async function api(p,b){const r=await fetch(p,b?{method:'POST',body:JSON.stringify(b)}:{});const j=await r.json();if(j.error)throw new Error(j.error);return j}
+const split=s=>(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+
+/* tag inputs */
+function drawTags(k){const box=$('tb-'+k),inp=box.querySelector('input');box.querySelectorAll('.tg').forEach(e=>e.remove());
+  tags[k].forEach((t,i)=>{const s=document.createElement('span');s.className='tg'+(k==='learn'?' l':'');s.innerHTML=esc(t)+' <b title="Remove">×</b>';s.querySelector('b').onclick=()=>{tags[k].splice(i,1);drawTags(k)};box.insertBefore(s,inp)})}
+['know','learn'].forEach(k=>{const inp=$('tb-'+k).querySelector('input');
+  const add=()=>{const v=inp.value.replace(/,/g,'').trim();if(v&&!tags[k].includes(v))tags[k].push(v);inp.value='';drawTags(k)};
+  inp.onkeydown=e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();add()}else if(e.key==='Backspace'&&!inp.value&&tags[k].length){tags[k].pop();drawTags(k)}};
+  inp.onblur=add;$('tb-'+k).onclick=()=>inp.focus()});
+
+async function load(){S=await api('/api/state');tags.know=split(S.skills);tags.learn=split(S.learn);drawTags('know');drawTags('learn');
+  $('patok').textContent=S.has_pat?'Saved. Leave blank to keep it.':'';$('groqok').textContent=S.has_groq?'Saved. Leave blank to keep it.':'';render()}
+
+function render(){
+  $('mk').innerHTML=tags.know.map(t=>`<span>${esc(t)}</span>`).join('')||'<small>Nothing yet</small>';
+  $('ml').innerHTML=tags.learn.map(t=>`<span class="l">${esc(t)}</span>`).join('')||'<small>Nothing yet</small>';
+  const inLv=i=>lvl==='any'||i.difficulty===lvl;
+  $('nav').innerHTML=VIEWS.map(([k,l,c])=>`<button class="nv ${k===view?'on':''}" style="--c:${c}" onclick="view='${k}';render()"><i></i>${l}<em>${S.issues.filter(i=>i.status===k&&inLv(i)).length}</em></button>`).join('');
+  $('seg').innerHTML=LV.map(([k,l,d,c])=>`<button class="${k===lvl?'on':''}" style="--c:${c}" onclick="lvl='${k}';render()"><b>${l}</b><small>${d}</small></button>`).join('');
+  $('title').textContent=VIEWS.find(v=>v[0]===view)[1]+' issues';
+  const L=S.issues.filter(i=>i.status===view&&inLv(i));
+  $('sub').textContent=L.length?`${L.length} ranked by how well they fit you`:'';
+  if(busy){$('list').innerHTML='<div class="sk"></div><div class="sk"></div><div class="sk"></div>';return}
+  if(!L.length){$('list').innerHTML=view==='new'?`<div class="empty"><h2>${S.has_pat&&S.has_groq?'No issues here yet':'Set up Scout first'}</h2>${S.has_pat&&S.has_groq?'Pick a level and choose Find issues. Scout searches open, unassigned issues and grades each one against your skills.':'Open Profile and keys, add your skills, GitHub token and Groq key.'}</div>`:'<div class="empty">Nothing here yet.</div>';return}
+  $('list').innerHTML=L.map(card).join('')}
+
+function card(i){const c=COL[i.difficulty]||'#a99cff',sc=i.score>=75?'#42d392':i.score>=50?'#f5b942':'#f0668a',st=i.status;
+  const lab=(i.labels||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,4).map(x=>`<span class="lab">${esc(x)}</span>`).join('');
+  return `<article class="card" style="--c:${c}">
+  <div><div class="repo">${esc(i.repo)}</div><h3><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></h3>
+  <div class="pills"><span class="lv">${esc(i.difficulty)}</span>${lab}</div><p class="why">${esc(i.reason)}</p></div>
+  <div class="ring" style="--p:${i.score};--c:${sc}" title="Fit score"><span>${i.score}</span></div>
+  <details><summary>How to start</summary><div class="plan">${esc(i.plan)}</div></details>
+  <div class="acts"><button class="pri" onclick="draft(${i.id},this)">${i.draft?'Redraft':'Draft'} claim comment</button>
+  ${st!=='saved'?`<button onclick="setSt(${i.id},'saved')">Save</button>`:''}${st!=='claimed'?`<button onclick="setSt(${i.id},'claimed')">Mark claimed</button>`:''}${st!=='done'?`<button onclick="setSt(${i.id},'done')">Mark done</button>`:''}
+  <button class="ghost" onclick="setSt(${i.id},'dismissed')">Dismiss</button></div>
+  ${i.draft?`<div class="draft"><textarea id="d${i.id}">${esc(i.draft)}</textarea><div class="acts"><button onclick="copyD(${i.id})">Copy</button><button onclick="window.open('${esc(i.url)}','_blank')">Open issue</button></div></div>`:''}</article>`}
+
+async function setSt(id,status){try{await api('/api/status',{id,status});await load()}catch(e){toast(e.message,1)}}
+async function draft(id,b){b.disabled=true;b.textContent='Drafting…';try{await api('/api/draft',{id});await load()}catch(e){toast(e.message,1);b.disabled=false;b.textContent='Draft claim comment'}}
+function copyD(id){navigator.clipboard.writeText($('d'+id).value);toast('Copied')}
+async function save(){await api('/api/settings',{pat:$('pat').value,groq:$('groq').value,skills:tags.know.join(', '),learn:tags.learn.join(', ')});$('pat').value=$('groq').value=''}
+$('open').onclick=()=>$('dlg').showModal();$('cancel').onclick=()=>$('dlg').close();
+$('save').onclick=async()=>{try{await save();$('dlg').close();toast('Saved');load()}catch(e){toast(e.message,1)}};
+$('detect').onclick=async()=>{const b=$('detect');b.disabled=true;try{await save();await api('/api/skills/detect',{});await load();toast('Skills filled from your repos')}catch(e){toast(e.message,1)}b.disabled=false};
+$('scan').onclick=async()=>{if(busy)return;busy=true;view='new';$('scan').disabled=true;$('scan').textContent='Scouting…';render();
+  try{const r=await api('/api/scan',{level:lvl});toast(r.added?`Found ${r.added} new ${lvl==='any'?'':lvl+' '}issues`:`Checked ${r.checked} issues, none were ${lvl}. Try another level.`)}catch(e){toast(e.message,1)}
+  busy=false;$('scan').disabled=false;$('scan').textContent='Find issues';await load()};
+load().then(()=>{if(!S.has_pat||!S.has_groq)$('dlg').showModal()});
+</script></body></html>
