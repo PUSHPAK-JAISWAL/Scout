@@ -193,9 +193,12 @@ fn gh_get(pat string, url string) !string {
 	return resp.body.replace('"body":null', '"body":""').replace('"language":null', '"language":""')
 }
 
-// One GraphQL request carries every search (aliased a0..a7), so GitHub sees a
-// single call instead of a burst of REST searches that trips the secondary limit.
-fn gh_search(pat string, qs []string) !GqlData {
+// One GraphQL request carries several searches at once (aliased a0, a1, ...),
+// so GitHub sees a handful of calls instead of a burst of REST searches that
+// trips the secondary limit. Kept small (<=4 per request): a wider request
+// asks more of GitHub's servers per call and is more likely to time out with
+// a 502, which is a server-side gateway error, not a rate limit.
+fn gh_search_once(pat string, qs []string) !GqlData {
 	d := '$'
 	mut defs := []string{}
 	mut fields := []string{}
@@ -207,27 +210,83 @@ fn gh_search(pat string, qs []string) !GqlData {
 	}
 	query := 'query(' + defs.join(', ') + ') { ' + fields.join(' ') +
 		' } fragment F on Issue { title url body n: comments { total: totalCount } labels(first: 5) { nodes { name } } repository { full: nameWithOwner } }'
-	mut req := http.new_request(.post, 'https://api.github.com/graphql', json2.encode(GqlReq{
-		query:     query
-		variables: vars
-	}))
-	req.add_custom_header('Authorization', 'Bearer ${pat}')!
-	req.add_custom_header('Content-Type', 'application/json')!
-	req.add_custom_header('User-Agent', 'open-source-scout-v')!
-	resp := req.do()!
-	if resp.status_code == 403 || resp.status_code == 429 {
-		return error('GitHub is rate limiting this token. Wait a few minutes, then try again.')
+	mut last_err := ''
+	for attempt in 0 .. 3 {
+		if attempt > 0 {
+			time.sleep(time.Duration(attempt) * 1200 * time.millisecond)
+		}
+		mut req := http.new_request(.post, 'https://api.github.com/graphql', json2.encode(GqlReq{
+			query:     query
+			variables: vars
+		}))
+		req.add_custom_header('Authorization', 'Bearer ${pat}')!
+		req.add_custom_header('Content-Type', 'application/json')!
+		req.add_custom_header('User-Agent', 'open-source-scout-v')!
+		resp := req.do() or {
+			last_err = err.msg()
+			continue
+		}
+		if resp.status_code == 403 || resp.status_code == 429 {
+			return error('GitHub is rate limiting this token. Wait a few minutes, then try again.')
+		}
+		if resp.status_code in [502, 503, 504] {
+			// Transient gateway hiccup on GitHub's side, not our request. Retry.
+			last_err = 'GitHub ${resp.status_code} (temporary)'
+			continue
+		}
+		if resp.status_code != 200 {
+			return error('GitHub ${resp.status_code}: ${clip(resp.body, 300)}')
+		}
+		if resp.body.to_lower().contains('rate limit') && !resp.body.contains('"nodes"') {
+			return error('GitHub is rate limiting this token. Wait a few minutes, then try again.')
+		}
+		r := json2.decode[GqlResp](resp.body) or {
+			return error('Could not read the GitHub answer: ${clip(resp.body, 300)}')
+		}
+		return r.data
 	}
-	if resp.status_code != 200 {
-		return error('GitHub ${resp.status_code}: ${clip(resp.body, 300)}')
+	return error('GitHub is temporarily unavailable (${last_err}). Try Find issues again in a moment.')
+}
+
+// Runs all the searches, four at a time, so each single GraphQL request stays
+// light. Chunks that error are skipped rather than failing the whole scan, so
+// one flaky batch doesn't waste the ones that already succeeded.
+fn gh_search(pat string, qs []string) ![]GhIssue {
+	mut out := []GhIssue{}
+	mut urls := map[string]bool{}
+	mut ok_count := 0
+	mut last_err := ''
+	for i := 0; i < qs.len; i += 4 {
+		chunk := qs[i..if i + 4 < qs.len { i + 4 } else { qs.len }]
+		gd := gh_search_once(pat, chunk) or {
+			last_err = err.msg()
+			continue
+		}
+		ok_count++
+		for grp in [gd.a0, gd.a1, gd.a2, gd.a3, gd.a4, gd.a5, gd.a6, gd.a7] {
+			for node in grp.nodes {
+				if node.url == '' || node.url in urls {
+					continue
+				}
+				urls[node.url] = true
+				out << GhIssue{
+					title:          node.title
+					body:           node.body
+					html_url:       node.url
+					repository_url: 'https://api.github.com/repos/' + node.repository.full
+					comments:       node.n.total
+					labels:         node.labels.nodes
+				}
+			}
+		}
+		if i + 4 < qs.len {
+			time.sleep(400 * time.millisecond)
+		}
 	}
-	if resp.body.to_lower().contains('rate limit') && !resp.body.contains('"nodes"') {
-		return error('GitHub is rate limiting this token. Wait a few minutes, then try again.')
+	if ok_count == 0 {
+		return error(last_err)
 	}
-	r := json2.decode[GqlResp](resp.body) or {
-		return error('Could not read the GitHub answer: ${clip(resp.body, 300)}')
-	}
-	return r.data
+	return out
 }
 
 fn groq(key string, system string, user string) !string {
@@ -357,12 +416,20 @@ fn split_list(s string) []string {
 }
 
 fn level_frags(level string) []string {
-	return match level {
+	mut f := match level {
 		'trivial' { ['typo in:title', 'label:documentation'] }
+		'easy' { ['label:"good first issue"'] }
 		'medium' { ['label:"help wanted"'] }
 		'hard' { ['label:"help wanted" comments:>3', 'label:bug'] }
-		else { ['label:"good first issue"'] }
+		else { ['label:"good first issue"', 'label:"help wanted"', 'typo in:title'] } // 'any': a mix, not just good-first-issue
 	}
+	// A great many maintainers never label issues at all, so a label-only
+	// search walks right past good ones. Always also look at unlabeled
+	// issues; Groq judges each issue's real difficulty from its text, not
+	// from whatever label (or lack of one) it happens to carry.
+	f << 'no:label'
+	f << 'no:label comments:<3'
+	return f
 }
 
 // Find issues for the chosen level, then let Groq grade each one against
@@ -390,33 +457,18 @@ pub fn (mut app App) scan(mut ctx Context) veb.Result {
 	if langs.len == 0 {
 		return fail(mut ctx, 'Add at least one skill you know or want to learn.')
 	}
+	frags := level_frags(sr.level)
+	// Spread the 8-query budget across frags first, languages second, so
+	// "Any" samples every difficulty instead of filling up on the first one.
 	mut qs := []string{}
-	for frag in level_frags(sr.level) {
-		for s in langs {
-			if qs.len < 8 {
-				qs << 'is:issue is:open no:assignee -linked:pr archived:false ${frag} language:${s}'
-			}
-		}
+	mut li := 0
+	for qs.len < 8 && qs.len < frags.len * langs.len {
+		frag := frags[qs.len % frags.len]
+		s := langs[li % langs.len]
+		qs << 'is:issue is:open no:assignee -linked:pr archived:false ${frag} language:${s}'
+		li++
 	}
-	gd := gh_search(pat, qs) or { return fail(mut ctx, err.msg()) }
-	mut cands := []GhIssue{}
-	mut urls := map[string]bool{}
-	for grp in [gd.a0, gd.a1, gd.a2, gd.a3, gd.a4, gd.a5, gd.a6, gd.a7] {
-		for node in grp.nodes {
-			if node.url == '' || node.url in urls {
-				continue
-			}
-			urls[node.url] = true
-			cands << GhIssue{
-				title:          node.title
-				body:           node.body
-				html_url:       node.url
-				repository_url: 'https://api.github.com/repos/' + node.repository.full
-				comments:       node.n.total
-				labels:         node.labels.nodes
-			}
-		}
-	}
+	cands := gh_search(pat, qs) or { return fail(mut ctx, err.msg()) }
 	mut matched := 0
 	mut checked := 0
 	mut problem := ''
@@ -432,7 +484,7 @@ pub fn (mut app App) scan(mut ctx Context) veb.Result {
 		}
 		repo := c.repository_url.replace('https://api.github.com/repos/', '')
 		labels := c.labels.map(it.name).join(', ')
-		sys := 'You grade a GitHub issue for one contributor. Reply only with JSON: {"score":0-100,"level":"trivial|easy|medium|hard","reason":"one or two sentences on fit","plan":"three short steps to start"}. Levels: trivial = typo, wording, rename a variable, change a constant or config value, one-line edit; easy = small self-contained change in one file; medium = several files or needs some project knowledge; hard = design work or deep knowledge. Score by fit: high when it uses skills the contributor knows, a little lower for skills they want to learn (say it is a good stretch), low when it needs skills in neither list or is vague, stale, or likely taken.'
+		sys := 'You grade a GitHub issue for one contributor. Reply only with JSON: {"score":0-100,"level":"trivial|easy|medium|hard","reason":"one or two sentences on fit","plan":"three short steps to start"}. Judge the level from the issue title and body yourself; do not just copy a GitHub label, since many issues have no label or a misleading one. Levels: trivial = typo, wording, rename a variable, change a constant or config value, one-line edit; easy = small self-contained change in one file; medium = several files or needs some project knowledge; hard = design work or deep knowledge. Score by fit: high when it uses skills the contributor knows, a little lower for skills they want to learn (say it is a good stretch), low when it needs skills in neither list or is vague, stale, or likely taken.'
 		usr := 'Knows: ${know}\nWants to learn: ${learn}\nRepo: ${repo}\nTitle: ${c.title}\nLabels: ${labels}\nComments: ${c.comments}\nBody:\n${clip(c.body, 1800)}'
 		if checked > 0 {
 			time.sleep(1500 * time.millisecond) // stay under Groq's per-minute limit
