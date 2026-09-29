@@ -6,7 +6,7 @@ module appwin
 // WebKitGTK on Linux, WKWebView on macOS) — the same technique Tauri uses.
 // A real Chromium bundle is 100MB+ and its own process; this is a few
 // hundred KB and runs the UI inside your own process.
-import ttytm.webview
+import pushpak_jaiswal.webview
 import net
 import os
 import time
